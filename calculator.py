@@ -23,17 +23,18 @@ def calculate(first_number,second_number,operator):
    return div(first_number,second_number)
   else:
     return "Invalid Operator"
-while True:
-  try:
-    first_number=float(input("Enter Your First Number: "))
-    operator=input("Enter Operator(+,-,*,/): ")
-    second_number=float(input("Enter Your Second Number: "))
-    print(calculate(first_number,second_number,operator))
-  except ValueError:
-    print("Invalid Number.Please Enter a Numeric Value.")
-    continue
-    
-  choice=input("Do you want to Continue(Yes/No) :").strip().lower()
+if __name__=="__main__":
+  while True:
+    try:
+      first_number=float(input("Enter Your First Number: "))
+      operator=input("Enter Operator(+,-,*,/): ")
+      second_number=float(input("Enter Your Second Number: "))
+      print(calculate(first_number,second_number,operator))
+    except ValueError:
+      print("Invalid Number.Please Enter a Numeric Value.")
+      continue
+      
+    choice=input("Do you want to Continue(Yes/No) :").strip().lower()
 
-  if choice=="no" : 
-     break
+    if choice=="no" : 
+      break

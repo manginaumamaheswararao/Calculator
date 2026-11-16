@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Calculator</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background: #171717;
+            font-family: Arial, sans-serif;
+        }
+
+        .calculator {
+            width: min(340px, 95vw);
+            padding: 20px;
+            border-radius: 24px;
+            background: #000;
+        }
+
+        #expression {
+            min-height: 28px;
+            padding: 0 8px;
+            color: #aaa;
+            text-align: right;
+            font-size: 20px;
+            overflow-wrap: anywhere;
+        }
+
+        #display {
+            width: 100%;
+            margin-bottom: 20px;
+            padding: 20px 8px;
+            color: white;
+            background: transparent;
+            border: none;
+            text-align: right;
+            font-size: 48px;
+        }
+
+        #error {
+            min-height: 36px;
+            margin: 0 0 12px;
+            color: #ffb4ab;
+            font-size: 14px;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        button {
+            height: 64px;
+            border: none;
+            border-radius: 32px;
+            background: #333;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        button:focus-visible {
+            outline: 3px solid white;
+            outline-offset: 2px;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        .operator {
+            background: #ff9500;
+        }
+
+        .utility {
+            background: #a5a5a5;
+            color: black;
+        }
+
+        .wide {
+            grid-column: span 2;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="calculator" aria-label="Calculator">
+        <div id="expression" aria-live="polite"></div>
+
+        <input id="display" value="0" aria-label="Result" readonly>
+
+        <p id="error" role="alert"></p>
+
+        <div class="buttons">
+            <button type="button" class="utility wide">AC</button>
+            <button type="button" class="utility" aria-label="Delete last digit">⌫</button>
+            <button type="button" class="operator">÷</button>
+
+            <button type="button">7</button>
+            <button type="button">8</button>
+            <button type="button">9</button>
+            <button type="button" class="operator">×</button>
+
+            <button type="button">4</button>
+            <button type="button">5</button>
+            <button type="button">6</button>
+            <button type="button" class="operator">−</button>
+
+            <button type="button">1</button>
+            <button type="button">2</button>
+            <button type="button">3</button>
+            <button type="button" class="operator">+</button>
+
+            <button type="button">±</button>
+            <button type="button">0</button>
+            <button type="button">.</button>
+            <button type="button" class="operator">=</button>
+        </div>
+    </main>
+
+    <script>
+        const display = document.getElementById("display");
+        const expression = document.getElementById("expression");
+        const errorMessage = document.getElementById("error");
+        const buttons = document.querySelectorAll(".buttons button");
+
+        const operators = {
+            "+": "+",
+            "−": "-",
+            "×": "*",
+            "÷": "/"
+        };
+
+        let firstNumber = null;
+        let operator = null;
+        let operatorSymbol = null;
+        let startNewNumber = false;
+        let calculating = false;
+
+        function resetCalculator() {
+            display.value = "0";
+            expression.textContent = "";
+            errorMessage.textContent = "";
+            firstNumber = null;
+            operator = null;
+            operatorSymbol = null;
+            startNewNumber = false;
+        }
+
+        async function getResult() {
+            if (operator === null || startNewNumber) {
+                return;
+            }
+
+            calculating = true;
+            buttons.forEach(button => button.disabled = true);
+            errorMessage.textContent = "";
+
+            expression.textContent =
+                `${firstNumber} ${operatorSymbol} ${display.value} =`;
+
+            try {
+                const parameters = new URLSearchParams({
+                    first: firstNumber,
+                    second: display.value,
+                    operator: operator
+                });
+
+                const response = await fetch("/calculate?" + parameters);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Calculation failed");
+                }
+
+                if (
+                    typeof data.result !== "number" ||
+                    !Number.isFinite(data.result)
+                ) {
+                    throw new Error("Result is outside the supported range");
+                }
+
+                display.value = String(data.result);
+            } catch (error) {
+                display.value = "Error";
+                errorMessage.textContent = error.message;
+            } finally {
+                firstNumber = null;
+                operator = null;
+                operatorSymbol = null;
+                startNewNumber = true;
+                calculating = false;
+                buttons.forEach(button => button.disabled = false);
+            }
+        }
+
+        buttons.forEach(function (button) {
+            button.addEventListener("click", async function () {
+                if (calculating) {
+                    return;
+                }
+
+                const value = button.textContent.trim();
+
+                if (value === "AC") {
+                    resetCalculator();
+                    return;
+                }
+
+                if (value === "=") {
+                    await getResult();
+                    return;
+                }
+
+                if (Object.hasOwn(operators, value)) {
+                    if (!Number.isFinite(Number(display.value))) {
+                        return;
+                    }
+
+                    if (operator !== null && !startNewNumber) {
+                        errorMessage.textContent =
+                            "Press = to finish this calculation first.";
+                        return;
+                    }
+
+                    firstNumber = Number(display.value);
+                    operator = operators[value];
+                    operatorSymbol = value;
+
+                    expression.textContent = `${display.value} ${value}`;
+                    errorMessage.textContent = "";
+                    startNewNumber = true;
+                    return;
+                }
+
+                if (startNewNumber) {
+                    display.value = "0";
+                    startNewNumber = false;
+                    errorMessage.textContent = "";
+
+                    if (operator === null) {
+                        expression.textContent = "";
+                    }
+                }
+
+                if (value === "⌫") {
+                    display.value = display.value.slice(0, -1);
+
+                    if (display.value === "" || display.value === "-") {
+                        display.value = "0";
+                    }
+                } else if (value === "±") {
+                    display.value = display.value.startsWith("-")
+                        ? display.value.slice(1)
+                        : "-" + display.value;
+                } else if (value === ".") {
+                    if (!display.value.includes(".")) {
+                        display.value += ".";
+                    }
+                } else if (/^[0-9]$/.test(value)) {
+                    display.value = display.value === "0"
+                        ? value
+                        : display.value + value;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
